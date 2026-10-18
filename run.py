@@ -137,17 +137,18 @@ def fixLockT(loc: list, v, dt):
             t += dt
     return fixedLoc
 
-def run1(dvt, loc: list, v, dt=0.2):
+async def run1(dvt, loc: list, v, dt=0.2):
     fixedLoc = fixLockT(loc, v, dt)
     nList = (5, 6, 7, 8, 9)
     n = nList[random.randint(0, len(nList)-1)]
     fixedLoc = randLoc(fixedLoc, n=n)  # a path will be divided into n parts for random route
-    clock = time.time()
+    clock = time.monotonic()
     for i in fixedLoc:
         LocationSimulation(dvt).set(*bd09Towgs84(i).values())
-        while time.time()-clock < dt:
-            pass
-        clock = time.time()
+        clock += dt
+        remaining = clock - time.monotonic()
+        if remaining > 0:
+            await asyncio.sleep(remaining)
 
 async def run(address, port, loc: list, v, d=15):
     random.seed(time.time())
@@ -159,5 +160,5 @@ async def run(address, port, loc: list, v, d=15):
 
     while True:
         vRand = 1000/(1000/v-(2*random.random()-1)*d)
-        run1(dvt, loc, vRand)
+        await run1(dvt, loc, vRand)
         print("跑完一圈了")

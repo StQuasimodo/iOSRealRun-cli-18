@@ -2,6 +2,7 @@ import signal
 import logging
 import coloredlogs
 import os
+import sys
 import asyncio
 
 
@@ -45,6 +46,12 @@ async def main():
     original_sigint_handler = signal.signal(signal.SIGINT, signal.SIG_IGN)
     process, address, port = tunnel.tunnel()
     signal.signal(signal.SIGINT, original_sigint_handler)
+
+    if process is None:
+        logger.error("failed to start tunnel")
+        print("❌ 无法建立隧道连接，请检查设备连接、解锁状态和管理员权限后重试")
+        sys.exit(1)
+
     try:
         logger.debug(f"tunnel address: {address}, port: {port}")
 
@@ -58,21 +65,24 @@ async def main():
             await run.run(address, port, loc, config.config.v)
         except KeyboardInterrupt:
             logger.debug("get KeyboardInterrupt (inner)")
-            logger.debug(f"Is process alive? {process.is_alive()}")
+            logger.debug(f"Is process alive? {process.poll() is None}")
         finally:
-            logger.debug(f"Is process alive? {process.is_alive()}")
+            logger.debug(f"Is process alive? {process.poll() is None}")
             logger.debug("Start to clear location")
 
     except KeyboardInterrupt:
         logger.debug("get KeyboardInterrupt (outer)")
     finally:
-        logger.debug(f"Is process alive? {process.is_alive()}")
+        logger.debug(f"Is process alive? {process.poll() is None}")
         logger.debug("terminating tunnel process")
-        process.terminate()
+        tunnel.stop(process)
         logger.info("tunnel process terminated")
         print("Bye")
     
 
     
 if __name__ == "__main__":
-    asyncio.run(main())
+    try:
+        asyncio.run(main())
+    except KeyboardInterrupt:
+        pass
